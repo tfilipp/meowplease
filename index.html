@@ -10,7 +10,7 @@
     <style>
         :root {
             --bg: #1A1816;
-            --card: #242220;
+            --card: #242220;  
             --text: #FFFAF5;
             --border: rgba(255, 250, 245, 0.1);
         }
@@ -31,6 +31,7 @@
 
         body.end-reached {
             overflow: hidden;
+            height: 100vh;
         }
 
         .scene {
@@ -62,11 +63,13 @@
             overflow: hidden;
         }
 
-        .text-char {
+        .letter {
             display: inline-block;
-            transform-style: preserve-3d;
-            will-change: transform;
+            transform-origin: center;
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0;
+            will-change: transform, opacity;
+            position: relative;
         }
 
         h1 {
@@ -78,6 +81,14 @@
             line-height: 1.1;
             will-change: transform;
             mix-blend-mode: difference;
+        }
+
+        .word {
+            display: inline-block;
+            position: relative;
+            white-space: nowrap;
+            padding: 0 1rem;
+            transform-style: preserve-3d;
         }
 
         .cards {
@@ -119,22 +130,6 @@
             mix-blend-mode: screen;
         }
 
-        .join {
-            position: fixed;
-            top: clamp(1rem, 3vw, 2rem);
-            right: clamp(1rem, 3vw, 2rem);
-            z-index: 1000;
-            padding: clamp(0.8rem, 2vw, 1.5rem) clamp(1.5rem, 4vw, 2.5rem);
-            border: 1px solid var(--border);
-            border-radius: 50px;
-            text-decoration: none;
-            color: var(--text);
-            transition: 0.3s ease;
-            backdrop-filter: blur(10px);
-            font-size: clamp(0.9rem, 2vw, 1.1rem);
-            will-change: transform;
-        }
-
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -150,7 +145,6 @@
             font-size: clamp(3rem, 10vw, 6rem);
             transform-style: preserve-3d;
             will-change: transform;
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .final {
@@ -165,20 +159,6 @@
                 perspective: 1000px;
             }
         }
-
-        .distort-text {
-            animation: textDistort 2s infinite alternate;
-            display: inline-block;
-        }
-
-        @keyframes textDistort {
-            0% {
-                transform: skew(-30deg) scale(0.8);
-            }
-            100% {
-                transform: skew(30deg) scale(1.2);
-            }
-        }
     </style>
 </head>
 <body>
@@ -188,7 +168,15 @@
         <div class="particles"></div>
         <div class="content-wrapper">
             <div class="section" id="hero">
-                <h1>искусственный<br>интеллект<br>с человеческим<br>лицом</h1>
+                <div class="title-container">
+                    <h1>
+                        <span class="word">искусственный</span>
+                        <span class="word">интеллект</span>
+                        <span class="word">с</span>
+                        <span class="word">человеческим</span>
+                        <span class="word">лицом</span>
+                    </h1>
+                </div>
             </div>
 
             <div class="section" id="features">
@@ -229,6 +217,33 @@
         const isMobile = window.matchMedia("(max-width: 768px)").matches;
         const particleCount = isMobile ? 40 : 100;
 
+        // Split text into letters
+        document.querySelectorAll('.word').forEach(word => {
+            const letters = word.textContent.split('').map(char => 
+                `<span class="letter" style="--delay: ${Math.random()}s">${char}</span>`
+            ).join('');
+            word.innerHTML = letters;
+
+            // Random starting positions for letters
+            word.querySelectorAll('.letter').forEach(letter => {
+                const angle = Math.random() * 360;
+                const distance = Math.random() * 1000 + 500;
+                letter.style.transform = `
+                    translate3d(
+                        ${Math.cos(angle) * distance}px,
+                        ${Math.sin(angle) * distance}px,
+                        ${Math.random() * -1000}px
+                    )
+                    rotate3d(
+                        ${Math.random()},
+                        ${Math.random()},
+                        ${Math.random()},
+                        ${Math.random() * 360}deg
+                    )
+                `;
+            });
+        });
+
         // Create particles
         const particles = document.querySelector('.particles');
         for(let i = 0; i < particleCount; i++) {
@@ -238,16 +253,8 @@
             particle.style.height = particle.style.width;
             particle.style.left = Math.random() * 100 + 'vw';
             particle.style.top = Math.random() * 100 + 'vh';
-            particle.style.transform = `translateZ(${Math.random() * 1500}px)`;
             particles.appendChild(particle);
         }
-
-        // Split text into characters
-        document.querySelectorAll('h1, h2, h3, p').forEach(element => {
-            element.innerHTML = element.textContent.split('').map(char => 
-                `<span class="text-char">${char}</span>`
-            ).join('');
-        });
 
         function lerp(start, end, t) {
             return start * (1 - t) + end * t;
@@ -269,6 +276,29 @@
                 document.body.classList.add('end-reached');
             }
 
+            // Animate letters based on scroll progress
+            document.querySelectorAll('.letter').forEach((letter, i) => {
+                const delay = parseFloat(letter.style.getPropertyValue('--delay'));
+                const letterProgress = Math.max(0, Math.min(1, (progress - delay) * 2));
+
+                if (letterProgress > 0) {
+                    letter.style.opacity = letterProgress;
+                    letter.style.transform = `
+                        translate3d(
+                            ${(1 - letterProgress) * Math.sin(i) * 100}px,
+                            ${(1 - letterProgress) * Math.cos(i) * 100}px,
+                            ${(1 - letterProgress) * -500}px
+                        )
+                        rotate3d(
+                            ${1 - letterProgress},
+                            ${1 - letterProgress},
+                            ${1 - letterProgress},
+                            ${(1 - letterProgress) * 360}deg
+                        )
+                    `;
+                }
+            });
+
             if (isMobile) {
                 handleMobileAnimations(progress);
             } else {
@@ -279,91 +309,69 @@
         }
 
         function handleMobileAnimations(progress) {
+            const contentWrapper = document.querySelector('.content-wrapper');
+            contentWrapper.style.transform = `translateY(${-progress * 300}vh)`;
+
             document.querySelector('#hero').style.transform = `
-                translate(
+                translate3d(
                     ${Math.sin(progress * Math.PI * 4) * 50}vw,
-                    ${-progress * 200}vh
+                    0,
+                    ${Math.cos(progress * Math.PI * 2) * 500}px
                 )
-                rotate(${progress * 720}deg)
-                scale(${1 - progress * 0.8})
+                rotate3d(1, 1, 1, ${progress * 360}deg)
+                scale(${1 - progress * 0.5})
             `;
 
-            document.querySelector('#features').style.transform = `
-                translate(
-                    ${Math.cos(progress * Math.PI * 3) * 30}vw,
-                    ${100 - progress * 300}vh
-                )
-                rotate(${-progress * 540}deg)
-                scale(${0.2 + progress * 1.5})
-            `;
+            document.querySelectorAll('.card').forEach((card, i) => {
+                const cardProgress = Math.max(0, Math.min(1, (progress - 0.2) * 2));
+                card.style.transform = `
+                    translate3d(
+                        ${Math.sin(cardProgress * Math.PI * 2 + i) * 100}px,
+                        ${Math.cos(cardProgress * Math.PI * 2 + i) * 100}px,
+                        ${(1 - cardProgress) * 1000}px
+                    )
+                    rotate3d(
+                        ${Math.random()},
+                        ${Math.random()},
+                        ${Math.random()},
+                        ${cardProgress * 360}deg
+                    )
+                    scale(${0.5 + cardProgress * 0.5})
+                `;
+            });
 
-            document.querySelector('#stats').style.transform = `
-                translate(
-                    ${Math.sin(progress * Math.PI * 2) * 40}vw,
-                    ${200 - progress * 400}vh
+            document.querySelectorAll('.stat').forEach((stat, i) => {
+                const statProgress = Math.max(0, Math.min(1, (progress - 0.4) * 2));
+                stat.style.transform = `
+                    translate3d(
+                        ${Math.sin(statProgress * Math.PI * 3 + i) * 150}px,
+                        ${Math.cos(statProgress * Math.PI * 3 + i) * 150}px,
+                        ${(1 - statProgress) * 1500}px
+                    )
+                    rotate3d(1, 1, 1, ${statProgress * 720}deg)
+                    scale(${0.1 + statProgress})
+                `;
+            });
+
+            document.querySelector('.final').style.transform = `
+                translate3d(
+                    ${Math.sin(progress * Math.PI) * 50}vw,
+                    0,
+                    ${(1 - progress) * 2000}px
                 )
-                rotate(${progress * 360}deg)
+                rotate3d(1, 1, 1, ${(1 - progress) * 360}deg)
                 scale(${progress * 2})
             `;
 
-            document.querySelector('#final').style.transform = `
-                translate(
-                    ${Math.cos(progress * Math.PI) * 20}vw,
-                    ${300 - progress * 500}vh
-                )
-                rotate(${-progress * 180}deg)
-                scale(${progress * 3})
-            `;
-
-            // Animate text characters
-            document.querySelectorAll('.text-char').forEach((char, i) => {
-                char.style.transform = `
-                    translate(
-                        ${Math.sin(progress * Math.PI * 2 + i) * 50}px,
-                        ${Math.cos(progress * Math.PI * 2 + i) * 50}px
-                    )
-                    rotate(${progress * 360 + i * 20}deg)
-                    scale(${1 + Math.sin(progress * Math.PI + i) * 0.5})
-                `;
-            });
-
-            // Crazy particle animations
+            // Particle chaos
             document.querySelectorAll('.particle').forEach((particle, i) => {
                 particle.style.transform = `
                     translate3d(
-                        ${Math.sin(progress * Math.PI * 4 + i) * 100}px,
-                        ${Math.cos(progress * Math.PI * 3 + i) * 100}px,
-                        ${Math.sin(progress * Math.PI * 2 + i) * 500}px
+                        ${Math.sin(progress * Math.PI * 4 + i) * 200}px,
+                        ${Math.cos(progress * Math.PI * 3 + i) * 200}px,
+                        ${Math.sin(progress * Math.PI * 2 + i) * 1000}px
                     )
-                    rotate(${progress * 720 + i * 45}deg)
                     scale(${1 + Math.sin(progress * Math.PI + i) * 2})
-                `;
-            });
-
-            // Transform cards with delay
-            document.querySelectorAll('.card').forEach((card, i) => {
-                const delay = i * 0.1;
-                card.style.transform = `
-                    translate3d(
-                        ${Math.sin(progress * Math.PI * 2 + i) * 100}px,
-                        ${Math.cos(progress * Math.PI * 2 + i) * 100}px,
-                        ${Math.sin(progress * Math.PI + i) * 300}px
-                    )
-                    rotate(${progress * 360 + i * 90}deg)
-                    scale(${0.5 + Math.sin(progress * Math.PI + i + delay) * 0.8})
-                `;
-            });
-
-            // Stats with intense animations
-            document.querySelectorAll('.stat').forEach((stat, i) => {
-                stat.style.transform = `
-                    translate3d(
-                        ${Math.sin(progress * Math.PI * 3 + i) * 150}px,
-                        ${Math.cos(progress * Math.PI * 2 + i) * 150}px,
-                        ${Math.sin(progress * Math.PI + i) * 400}px
-                    )
-                    rotate(${progress * 540 + i * 120}deg)
-                    scale(${0.8 + Math.sin(progress * Math.PI + i) * 1.2})
                 `;
             });
         }
@@ -377,8 +385,7 @@
                 scale(${1 + progress * 2})
             `;
 
-            // Similar intense animations for desktop...
-            // [Previous desktop animation code remains unchanged]
+            // [Similar animations for desktop...]
         }
 
         let mouseX = 0;
@@ -397,7 +404,8 @@
                 mouseY = lerp(mouseY, targetMouseY, 0.1);
 
                 const wrapper = document.querySelector('.content-wrapper');
-                wrapper.style.transform += `
+                const current = wrapper.style.transform || '';
+                wrapper.style.transform = current + `
                     rotateY(${mouseX}deg)
                     rotateX(${-mouseY}deg)
                 `;
